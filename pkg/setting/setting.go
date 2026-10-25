@@ -260,6 +260,9 @@ type Cfg struct {
 	// Auth proxy settings
 	AuthProxy AuthProxySettings
 
+	// CAS (4A 统一认证) settings
+	CAS CASSettings
+
 	// OAuth
 	OAuthAutoLogin                       bool
 	OAuthLoginErrorMessage               string
@@ -1269,6 +1272,7 @@ func (cfg *Cfg) parseINIFile(iniFile *ini.File) error {
 	cfg.readAuthJWTSettings()
 	cfg.readAuthExtJWTSettings()
 	cfg.readAuthProxySettings()
+	cfg.readCASSettings()
 	cfg.readSessionConfig()
 	cfg.readPasswordlessMagicLinkSettings()
 	if err := cfg.readSmtpSettings(); err != nil {

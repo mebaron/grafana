@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -514,6 +515,99 @@ func TestLoginOAuthRedirect(t *testing.T) {
 	location, ok := sc.resp.Header()["Location"]
 	assert.True(t, ok)
 	assert.Equal(t, "/login/github", location[0])
+}
+
+func setupCASAutoLoginScenario(t *testing.T, cfg *setting.Cfg, socialSvc social.Service) *scenarioContext {
+	t.Helper()
+	fakeSetIndexViewData(t)
+	fakeViewIndex(t)
+
+	sc := setupScenarioContext(t, "/login")
+	hs := &HTTPServer{
+		authnService:     &authntest.FakeService{},
+		Cfg:              cfg,
+		SettingsProvider: &setting.OSSImpl{Cfg: cfg},
+		License:          &licensing.OSSLicensingService{},
+		SocialService:    socialSvc,
+		Features:         featuremgmt.WithFeatures(),
+		log:              log.NewNopLogger(),
+	}
+
+	sc.defaultHandler = routing.Wrap(func(c *contextmodel.ReqContext) response.Response {
+		hs.LoginView(c)
+		return response.Empty(http.StatusOK)
+	})
+	sc.m.Get(sc.url, sc.defaultHandler)
+	return sc
+}
+
+func TestLoginCASAutoLoginRedirect(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	cfg := setting.NewCfg()
+	cfg.CAS = setting.CASSettings{
+		Enabled: true, AppID: "grafana", ServerURL: ts.URL,
+		HealthCheckTimeout: time.Second,
+	}
+
+	sc := setupCASAutoLoginScenario(t, cfg, &mockSocialService{})
+	sc.fakeReqNoAssertions("GET", sc.url).exec()
+
+	require.Equal(t, 307, sc.resp.Code)
+	location, ok := sc.resp.Header()["Location"]
+	assert.True(t, ok)
+	assert.Equal(t, "/login/cas", location[0])
+}
+
+func TestLoginCASAutoLoginDegradedWhen4ADown(t *testing.T) {
+	// 4A 返回 5xx 时不自动重定向,回退渲染原生登录页(自动降级)
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusBadGateway)
+	}))
+	defer ts.Close()
+
+	cfg := setting.NewCfg()
+	cfg.CAS = setting.CASSettings{
+		Enabled: true, AppID: "grafana", ServerURL: ts.URL,
+		HealthCheckTimeout: time.Second,
+	}
+
+	sc := setupCASAutoLoginScenario(t, cfg, &mockSocialService{})
+	sc.fakeReqNoAssertions("GET", sc.url).exec()
+
+	assert.Equal(t, 200, sc.resp.Code)
+	_, redirected := sc.resp.Header()["Location"]
+	assert.False(t, redirected, "must not redirect when the 4A endpoint is unhealthy")
+}
+
+func TestLoginCASAutoLoginSkippedWithOtherAutoLoginProvider(t *testing.T) {
+	// 与其他 auto_login provider 并存时放弃自动跳转(与既有 SAML/OAuth 行为一致)
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	cfg := setting.NewCfg()
+	cfg.CAS = setting.CASSettings{
+		Enabled: true, AppID: "grafana", ServerURL: ts.URL,
+		HealthCheckTimeout: time.Second,
+	}
+
+	mock := &mockSocialService{
+		oAuthInfos: map[string]*social.OAuthInfo{
+			"github": {Enabled: true, AutoLogin: true, Name: "github"},
+		},
+	}
+
+	sc := setupCASAutoLoginScenario(t, cfg, mock)
+	sc.fakeReqNoAssertions("GET", sc.url).exec()
+
+	assert.Equal(t, 200, sc.resp.Code)
+	_, redirected := sc.resp.Header()["Location"]
+	assert.False(t, redirected, "auto login must be skipped when multiple providers request it")
 }
 
 func TestLoginInternal(t *testing.T) {

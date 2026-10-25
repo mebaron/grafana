@@ -23,6 +23,7 @@ The following table shows all supported authentication methods and the features 
 | :---------------------------------- | :---------------- | :----------- | :----------- | :-------------------- | :-------- | :------------- | :---------- | :------------------- | :--------- | :------------ |
 | [Anonymous access](anonymous-auth/) | N/A               | N/A          | N/A          | N/A                   | N/A       | N/A            | N/A         | N/A                  | N/A        | N/A           |
 | [Auth Proxy](auth-proxy/)           | no                | yes          | yes          | no                    | yes       | no             | N/A         | no                   | N/A        | N/A           |
+| [CAS (4A)](cas/)                    | no                | no           | no           | no                    | no        | no             | N/A         | N/A                  | yes        | yes           |
 | [Azure AD OAuth](azuread/)          | yes               | yes          | yes          | yes                   | yes       | yes            | N/A         | yes                  | yes        | yes           |
 | [Basic auth](grafana/)              | yes               | N/A          | yes          | yes                   | N/A       | N/A            | N/A         | N/A                  | N/A        | N/A           |
 | [Passwordless auth](passwordless/)  | yes               | N/A          | yes          | yes                   | N/A       | N/A            | N/A         | N/A                  | N/A        | N/A           |

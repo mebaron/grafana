@@ -26,10 +26,12 @@ func (hs *HTTPServer) OAuthLogin(reqCtx *contextmodel.ReqContext) {
 	}
 
 	code := reqCtx.Query("code")
+	ticket := reqCtx.Query("ticket")
 	redirectTo := reqCtx.Query("redirectTo")
 
 	req := &authn.Request{HTTPRequest: reqCtx.Req}
-	if code == "" {
+	// CAS (4A) 回调携带的是 ticket 参数而非 code,同样视为已进入回调分支
+	if code == "" && ticket == "" {
 		redirect, err := hs.authnService.RedirectURL(reqCtx.Req.Context(), authn.ClientWithPrefix(name), req)
 		if err != nil {
 			reqCtx.Redirect(hs.redirectURLWithErrorCookie(reqCtx, err))

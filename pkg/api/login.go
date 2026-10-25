@@ -19,6 +19,7 @@ import (
 	"github.com/grafana/grafana/pkg/middleware/cookies"
 	"github.com/grafana/grafana/pkg/services/auth"
 	"github.com/grafana/grafana/pkg/services/authn"
+	"github.com/grafana/grafana/pkg/services/authn/clients"
 	contextmodel "github.com/grafana/grafana/pkg/services/contexthandler/model"
 	"github.com/grafana/grafana/pkg/services/featuremgmt"
 	loginservice "github.com/grafana/grafana/pkg/services/login"
@@ -158,6 +159,7 @@ func (hs *HTTPServer) LoginView(c *contextmodel.ReqContext) {
 
 func (hs *HTTPServer) tryAutoLogin(c *contextmodel.ReqContext) bool {
 	samlAutoLogin := hs.samlAutoLoginEnabled()
+	casAutoLogin := hs.casAutoLoginEnabled()
 	oauthInfos := hs.SocialService.GetOAuthInfoProviders()
 
 	autoLoginProvidersLen := 0
@@ -172,6 +174,10 @@ func (hs *HTTPServer) tryAutoLogin(c *contextmodel.ReqContext) bool {
 	}
 
 	if samlAutoLogin {
+		autoLoginProvidersLen++
+	}
+
+	if casAutoLogin {
 		autoLoginProvidersLen++
 	}
 
@@ -207,7 +213,38 @@ func (hs *HTTPServer) tryAutoLogin(c *contextmodel.ReqContext) bool {
 		return true
 	}
 
+	if casAutoLogin {
+		redirectUrl := hs.Cfg.AppSubURL + "/login/cas"
+		if hs.Features.IsEnabledGlobally(featuremgmt.FlagUseSessionStorageForRedirection) {
+			redirectUrl += hs.getRedirectToForAutoLogin(c)
+		}
+		c.Logger.Info("CAS auto login enabled. Redirecting to " + redirectUrl)
+		c.Redirect(redirectUrl, 307)
+		return true
+	}
+
 	return false
+}
+
+// casAutoLoginEnabled 判断是否将未登录用户自动重定向到 4A CAS 登录:
+// 要求 CAS 启用且 4A 端点可达。4A 异常(超时/网络错/5xx)时返回 false,
+// 登录页回退为 Grafana 原生账号密码登录(自动降级,无需人工干预)
+func (hs *HTTPServer) casAutoLoginEnabled() bool {
+	if !hs.Cfg.CAS.Enabled {
+		return false
+	}
+	hs.casHealthOnce.Do(func() {
+		health, err := clients.NewCASHealth(hs.Cfg)
+		if err != nil {
+			hs.log.Error("Failed to create CAS health checker", "error", err)
+			return
+		}
+		hs.casHealth = health
+	})
+	if hs.casHealth == nil {
+		return false
+	}
+	return hs.casHealth.Check(context.Background())
 }
 
 func (hs *HTTPServer) getRedirectToForAutoLogin(c *contextmodel.ReqContext) string {
@@ -473,6 +510,9 @@ func (hs *HTTPServer) isExternallySynced(cfg *setting.Cfg, authModule string) bo
 		return !cfg.LDAPSkipOrgRoleSync
 	case loginservice.JWTModule:
 		return !cfg.JWTAuth.SkipOrgRoleSync
+	case loginservice.CASAuthModule:
+		// CAS 不做 org 角色同步,角色完全由 Grafana 侧管理
+		return false
 	}
 	switch authModule {
 	case loginservice.GoogleAuthModule, loginservice.OktaAuthModule, loginservice.AzureADAuthModule, loginservice.GitLabAuthModule, loginservice.GithubAuthModule, loginservice.GrafanaComAuthModule, loginservice.GenericOAuthModule:
@@ -517,6 +557,8 @@ func (hs *HTTPServer) isProviderEnabled(cfg *setting.Cfg, authModule string) boo
 		return cfg.LDAPAuthEnabled
 	case loginservice.JWTModule:
 		return cfg.JWTAuth.Enabled
+	case loginservice.CASAuthModule:
+		return cfg.CAS.Enabled
 	case loginservice.GoogleAuthModule, loginservice.OktaAuthModule, loginservice.AzureADAuthModule, loginservice.GitLabAuthModule, loginservice.GithubAuthModule, loginservice.GrafanaComAuthModule, loginservice.GenericOAuthModule:
 		return hs.authnService.IsClientEnabled(oauthModuleToAuthnClient(authModule))
 	}

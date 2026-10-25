@@ -32,6 +32,7 @@ const (
 	JWTModule              = "jwt"
 	ExtendedJWTModule      = "extendedjwt"
 	RenderModule           = "render"
+	CASAuthModule          = "cas"
 	// OAuth provider modules
 	AzureADAuthModule    = "oauth_azuread"
 	GoogleAuthModule     = "oauth_google"
@@ -46,6 +47,7 @@ const (
 	SAMLLabel = "SAML"
 	LDAPLabel = "LDAP"
 	JWTLabel  = "JWT"
+	CASLabel  = "CAS (4A)"
 	// OAuth provider labels
 	AuthProxyLabel    = "Auth Proxy"
 	AzureADLabel      = "AzureAD"
@@ -80,6 +82,8 @@ func GetAuthProviderLabel(authModule string) string {
 		return JWTLabel
 	case AuthProxyAuthModule:
 		return AuthProxyLabel
+	case CASAuthModule:
+		return CASLabel
 	case GenericOAuthModule:
 		return GenericOAuthLabel
 	default:

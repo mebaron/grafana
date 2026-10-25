@@ -53,6 +53,7 @@ import (
 	"github.com/grafana/grafana/pkg/services/apiserver/endpoints/request"
 	"github.com/grafana/grafana/pkg/services/auth"
 	"github.com/grafana/grafana/pkg/services/authn"
+	"github.com/grafana/grafana/pkg/services/authn/clients"
 	"github.com/grafana/grafana/pkg/services/cleanup"
 	"github.com/grafana/grafana/pkg/services/contexthandler"
 	"github.com/grafana/grafana/pkg/services/correlations"
@@ -124,6 +125,10 @@ type HTTPServer struct {
 	middlewares      []web.Handler
 	namedMiddlewares []routing.RegisterNamedMiddleware
 	bus              bus.Bus
+
+	// CAS (4A) 可达性探测,懒初始化,用于 auto-login 降级判断
+	casHealth     *clients.CASHealth
+	casHealthOnce sync.Once
 
 	pluginContextProvider        *plugincontext.Provider
 	RouteRegister                routing.RouteRegister

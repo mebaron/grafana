@@ -116,6 +116,39 @@ func TestOAuthLogin_Redirect(t *testing.T) {
 	}
 }
 
+// 4A CAS 回调只携带 ticket 参数(不带 code),必须走 Login 分支而非发起重定向分支
+func TestOAuthLogin_CASTicketCallback(t *testing.T) {
+	var cfg *setting.Cfg
+	server := SetupAPITestServer(t, func(hs *HTTPServer) {
+		cfg = setting.NewCfg()
+		hs.Cfg = cfg
+		hs.Cfg.LoginCookieName = "some_name"
+		hs.SecretsService = fakes.NewFakeSecretsService()
+		hs.authnService = &authntest.FakeService{
+			ExpectedIdentity: &authn.Identity{
+				SessionToken: &usertoken.UserToken{UnhashedToken: "some-token"},
+			},
+		}
+	})
+
+	setClientWithoutRedirectFollow(t, server)
+
+	res, err := server.Send(server.NewGetRequest("/login/cas?ticket=ST-mock-123"))
+	require.NoError(t, err)
+
+	// Login 分支成功:重定向到 / 并写入会话 cookie,state/pkce cookie 被删除
+	assert.Equal(t, http.StatusFound, res.StatusCode)
+	assert.Equal(t, "/", res.Header.Get("Location"))
+
+	require.GreaterOrEqual(t, len(res.Cookies()), 4)
+	assert.Equal(t, OauthStateCookieName, res.Cookies()[0].Name)
+	assert.Equal(t, "", res.Cookies()[0].Value)
+	assert.Equal(t, -1, res.Cookies()[0].MaxAge)
+	assert.Equal(t, cfg.LoginCookieName, res.Cookies()[2].Name)
+
+	require.NoError(t, res.Body.Close())
+}
+
 func TestOAuthLogin_AuthorizationCode(t *testing.T) {
 	type testCase struct {
 		desc             string

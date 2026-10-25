@@ -115,6 +115,15 @@ func ProvideRegistration(
 		authnSvc.RegisterClient(clients.ProvideJWT(jwtService, cfg))
 	}
 
+	if cfg.CAS.Enabled {
+		casClient, err := clients.ProvideCAS(cfg)
+		if err != nil {
+			logger.Error("Failed to configure CAS client", "err", err)
+		} else {
+			authnSvc.RegisterClient(casClient)
+		}
+	}
+
 	if cfg.ExtJWTAuth.Enabled {
 		authnSvc.RegisterClient(clients.ProvideExtendedJWT(cfg))
 	}

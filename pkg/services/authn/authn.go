@@ -29,6 +29,7 @@ const (
 	ClientForm         = "auth.client.form"
 	ClientProxy        = "auth.client.proxy"
 	ClientSAML         = "auth.client.saml"
+	ClientCAS          = "auth.client.cas"
 	ClientPasswordless = "auth.client.passwordless"
 	ClientLDAP         = "ldap"
 )
