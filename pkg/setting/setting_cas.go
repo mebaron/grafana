@@ -9,7 +9,7 @@ import (
 // (企业 4A 统一认证). See docs/sources/setup-grafana/configure-security/configure-authentication/cas/.
 type CASSettings struct {
 	Enabled     bool
-	AppID       string // 4A 分配给 Grafana 的 appid
+	AppID       string // 4A 分配给 Grafana 的 appId
 	ServerURL   string // 4A 基地址, 如 https://4a.example.com.cn (不含尾斜杠)
 	AllowSignUp bool   // 4A 用户首次登录是否自动创建 Grafana 用户
 

@@ -109,7 +109,7 @@ func TestCAS_RedirectURL(t *testing.T) {
 		u, err := url.Parse(redirect.URL)
 		require.NoError(t, err)
 		assert.Equal(t, "/4a/credentials/cas", u.Path)
-		assert.Equal(t, casTestAppID, u.Query().Get("appid"))
+		assert.Equal(t, casTestAppID, u.Query().Get("appId"))
 		// service 是 4A 侧精确匹配的静态回调地址,AppURL 的尾斜杠需裁剪
 		assert.Equal(t, "http://localhost:3000/login/cas", u.Query().Get("service"))
 
@@ -223,7 +223,7 @@ func TestCAS_Authenticate(t *testing.T) {
 			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				handlerCalled = true
 				assert.Equal(t, "/4a/cas/serviceValidate", r.URL.Path)
-				assert.Equal(t, casTestAppID, r.URL.Query().Get("appid"))
+				assert.Equal(t, casTestAppID, r.URL.Query().Get("appId"))
 
 				if tt.clientTimeout > 0 {
 					time.Sleep(2 * tt.clientTimeout)
@@ -329,7 +329,7 @@ func TestCAS_Logout(t *testing.T) {
 		u, err := url.Parse(redirect.URL)
 		require.NoError(t, err)
 		assert.Equal(t, "/4a/cas/logout", u.Path)
-		assert.Equal(t, casTestAppID, u.Query().Get("appid"))
+		assert.Equal(t, casTestAppID, u.Query().Get("appId"))
 		assert.Equal(t, "http://localhost:3000/login", u.Query().Get("url"))
 	})
 

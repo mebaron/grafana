@@ -71,7 +71,7 @@ func (h *CASHealth) Check(ctx context.Context) bool {
 
 func (h *CASHealth) probe(ctx context.Context) bool {
 	q := url.Values{}
-	q.Set("appid", h.cfg.CAS.AppID)
+	q.Set("appId", h.cfg.CAS.AppID)
 	q.Set("service", h.serviceURL())
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, h.cfg.CAS.ServerURL+casLoginPath+"?"+q.Encode(), nil)

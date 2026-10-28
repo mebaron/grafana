@@ -37,9 +37,9 @@ server_url = <CAS_BASE_URL>
 
 Grafana uses the following provider endpoints:
 
-- `GET <CAS_BASE_URL>/4a/credentials/cas?appid=<APP_ID>&service=<CALLBACK_URL>`: Grafana redirects unauthenticated users here. After a successful login, the provider redirects the browser back to `<CALLBACK_URL>` with a `ticket` parameter.
-- `GET <CAS_BASE_URL>/4a/cas/serviceValidate?appid=<APP_ID>&ticket=<TICKET>`: Grafana validates the ticket server-side and reads the user information (`user`, `cn`, `email` attributes) from the XML response.
-- `GET <CAS_BASE_URL>/4a/cas/logout?appid=<APP_ID>&url=<LOGIN_URL>`: When a user signs out of Grafana, the browser is redirected here so the provider session ends as well. This is only triggered by an explicit user sign-out.
+- `GET <CAS_BASE_URL>/4a/credentials/cas?appId=<APP_ID>&service=<CALLBACK_URL>`: Grafana redirects unauthenticated users here. After a successful login, the provider redirects the browser back to `<CALLBACK_URL>` with a `ticket` parameter.
+- `GET <CAS_BASE_URL>/4a/cas/serviceValidate?appId=<APP_ID>&ticket=<TICKET>`: Grafana validates the ticket server-side and reads the user information (`user`, `cn`, `email` attributes) from the XML response.
+- `GET <CAS_BASE_URL>/4a/cas/logout?appId=<APP_ID>&url=<LOGIN_URL>`: When a user signs out of Grafana, the browser is redirected here so the provider session ends as well. This is only triggered by an explicit user sign-out.
 
 The callback URL is `<server.root_url>/login/cas` and must stay static, because the provider matches it exactly.
 

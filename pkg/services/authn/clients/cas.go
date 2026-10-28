@@ -164,19 +164,19 @@ func (c *CAS) Logout(ctx context.Context, _ identity.Requester, _ *auth.UserToke
 	}
 
 	q := url.Values{}
-	q.Set("appid", c.cfg.CAS.AppID)
+	q.Set("appId", c.cfg.CAS.AppID)
 	q.Set("url", c.redirectAfterLogoutURL())
 	return &authn.Redirect{URL: c.cfg.CAS.ServerURL + casLogoutPath + "?" + q.Encode()}, true
 }
 
 func (c *CAS) loginURL() string {
 	q := url.Values{}
-	q.Set("appid", c.cfg.CAS.AppID)
+	q.Set("appId", c.cfg.CAS.AppID)
 	q.Set("service", c.serviceURL())
 	return c.cfg.CAS.ServerURL + casLoginPath + "?" + q.Encode()
 }
 
-// serviceURL 是 4A 登录成功后的回调地址。必须是静态地址:4A 按 appid 对 service
+// serviceURL 是 4A 登录成功后的回调地址。必须是静态地址:4A 按 appId 对 service
 // 精确匹配注册值,不能携带 state 等动态参数。AppURL 已含 root_url 的子路径
 // (pkg/setting readServerURLSettings),不能再拼 AppSubURL
 func (c *CAS) serviceURL() string {
@@ -197,7 +197,7 @@ type casUserInfo struct {
 // 因此必须先按状态码分流再解析
 func (c *CAS) validateTicket(ctx context.Context, ticket string) (*casUserInfo, error) {
 	q := url.Values{}
-	q.Set("appid", c.cfg.CAS.AppID)
+	q.Set("appId", c.cfg.CAS.AppID)
 	q.Set("ticket", ticket)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.cfg.CAS.ServerURL+casValidatePath+"?"+q.Encode(), nil)
