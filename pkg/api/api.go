@@ -81,6 +81,9 @@ func (hs *HTTPServer) registerRoutes() {
 	r.Get("/logout", hs.Logout)
 	r.Post("/login", requestmeta.SetOwner(requestmeta.TeamAuth), quota(string(auth.QuotaTargetSrv)), routing.Wrap(hs.LoginPost))
 	r.Get("/login/:name", quota(string(auth.QuotaTargetSrv)), hs.OAuthLogin)
+	// CAS(4A) 发起与回调走专用 handler(不走 authn client)
+	r.Get("/sso/login", quota(string(auth.QuotaTargetSrv)), hs.CASLogin)
+	r.Get("/sso/callback", quota(string(auth.QuotaTargetSrv)), hs.CASCallback)
 
 	r.Get("/login", hs.LoginView)
 	r.Get("/invite/:code", hs.Index)

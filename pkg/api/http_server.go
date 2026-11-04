@@ -53,6 +53,7 @@ import (
 	"github.com/grafana/grafana/pkg/services/apiserver/endpoints/request"
 	"github.com/grafana/grafana/pkg/services/auth"
 	"github.com/grafana/grafana/pkg/services/authn"
+	"github.com/grafana/grafana/pkg/services/cas"
 	"github.com/grafana/grafana/pkg/services/cleanup"
 	"github.com/grafana/grafana/pkg/services/contexthandler"
 	"github.com/grafana/grafana/pkg/services/correlations"
@@ -223,7 +224,9 @@ type HTTPServer struct {
 	namespacer           request.NamespaceMapper
 	anonService          anonymous.Service
 	userVerifier         user.Verifier
-	tlsCerts             TLSCerts
+	// casService 为 CAS(4A) 独立认证服务,见 pkg/services/cas
+	casService *cas.Service
+	tlsCerts   TLSCerts
 }
 
 type TLSCerts struct {
@@ -277,6 +280,12 @@ func ProvideHTTPServer(opts ServerOptions, cfg *setting.Cfg, routeRegister routi
 ) (*HTTPServer, error) {
 	web.Env = cfg.Env
 	m := web.New()
+
+	// CAS(4A) 独立认证服务;TLS 配置错误时启动即失败(fail-fast)
+	casSvc, err := cas.ProvideService(cfg, authInfoService, userService, orgService, quotaService)
+	if err != nil {
+		return nil, err
+	}
 
 	hs := &HTTPServer{
 		Cfg:                          cfg,
@@ -379,6 +388,7 @@ func ProvideHTTPServer(opts ServerOptions, cfg *setting.Cfg, routeRegister routi
 		namespacer:                   request.GetNamespaceMapper(cfg),
 		anonService:                  anonService,
 		userVerifier:                 userVerifier,
+		casService:                   casSvc,
 	}
 	if hs.Listener != nil {
 		hs.log.Debug("Using provided listener")

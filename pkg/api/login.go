@@ -175,6 +175,12 @@ func (hs *HTTPServer) tryAutoLogin(c *contextmodel.ReqContext) bool {
 		autoLoginProvidersLen++
 	}
 
+	// CAS(4A) 开启即视为唯一的 auto-login 入口,与其他 provider 的 auto_login 并存时
+	// 触发上面的多 provider 守卫(跳过跳转渲染原生登录页)
+	if hs.Cfg.CAS.Enabled {
+		autoLoginProvidersLen++
+	}
+
 	if autoLoginProvidersLen > 1 {
 		c.Logger.Warn("Skipping auto login because multiple auth providers are configured with auto_login option")
 		return false
@@ -203,6 +209,16 @@ func (hs *HTTPServer) tryAutoLogin(c *contextmodel.ReqContext) bool {
 			redirectUrl += hs.getRedirectToForAutoLogin(c)
 		}
 		c.Logger.Info("SAML auto login enabled. Redirecting to " + redirectUrl)
+		c.Redirect(redirectUrl, 307)
+		return true
+	}
+
+	if hs.Cfg.CAS.Enabled {
+		redirectUrl := hs.Cfg.AppSubURL + "/sso/login"
+		if hs.Features.IsEnabledGlobally(featuremgmt.FlagUseSessionStorageForRedirection) {
+			redirectUrl += hs.getRedirectToForAutoLogin(c)
+		}
+		c.Logger.Info("CAS auto login enabled. Redirecting to " + redirectUrl)
 		c.Redirect(redirectUrl, 307)
 		return true
 	}
@@ -311,7 +327,25 @@ func (hs *HTTPServer) Logout(c *contextmodel.ReqContext) {
 	}
 
 	hs.log.Info("Successful Logout", "id", c.SignedInUser.GetID())
+
+	// CAS(4A):本地会话已在 authnService.Logout 撤销,再跳转 4A 登出端点。
+	// 仅用户主动登出时走到这里,符合 4A"严禁登录前调用登出"的约束
+	if hs.casService != nil && hs.Cfg.CAS.Enabled && hs.Cfg.CAS.LogoutURL != "" &&
+		c.SignedInUser.GetAuthenticatedBy() == loginservice.CASAuthModule {
+		c.Redirect(hs.casService.LogoutURL(hs.casLogoutTarget()))
+		return
+	}
+
 	c.Redirect(redirect.URL)
+}
+
+// casLogoutTarget 返回 4A 登出后的回跳地址:优先 [auth.cas] url,
+// 回退 AppURL + /login(4A 的 url 参数需要绝对地址)
+func (hs *HTTPServer) casLogoutTarget() string {
+	if hs.Cfg.CAS.URL != "" {
+		return hs.Cfg.CAS.URL
+	}
+	return strings.TrimSuffix(hs.Cfg.AppURL, "/") + "/login"
 }
 
 func (hs *HTTPServer) tryGetEncryptedCookie(ctx *contextmodel.ReqContext, cookieName string) (string, bool) {
@@ -473,6 +507,9 @@ func (hs *HTTPServer) isExternallySynced(cfg *setting.Cfg, authModule string) bo
 		return !cfg.LDAPSkipOrgRoleSync
 	case loginservice.JWTModule:
 		return !cfg.JWTAuth.SkipOrgRoleSync
+	case loginservice.CASAuthModule:
+		// 角色仅在配置了 role_attribute 时由 4A 侧管理
+		return cfg.CAS.RoleAttribute != ""
 	}
 	switch authModule {
 	case loginservice.GoogleAuthModule, loginservice.OktaAuthModule, loginservice.AzureADAuthModule, loginservice.GitLabAuthModule, loginservice.GithubAuthModule, loginservice.GrafanaComAuthModule, loginservice.GenericOAuthModule:
@@ -517,6 +554,8 @@ func (hs *HTTPServer) isProviderEnabled(cfg *setting.Cfg, authModule string) boo
 		return cfg.LDAPAuthEnabled
 	case loginservice.JWTModule:
 		return cfg.JWTAuth.Enabled
+	case loginservice.CASAuthModule:
+		return cfg.CAS.Enabled
 	case loginservice.GoogleAuthModule, loginservice.OktaAuthModule, loginservice.AzureADAuthModule, loginservice.GitLabAuthModule, loginservice.GithubAuthModule, loginservice.GrafanaComAuthModule, loginservice.GenericOAuthModule:
 		return hs.authnService.IsClientEnabled(oauthModuleToAuthnClient(authModule))
 	}
